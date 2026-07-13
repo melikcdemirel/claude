@@ -1,0 +1,50 @@
+<!DOCTYPE html><html><head><meta charset="UTF-8"><style>
+:root{--bg:#0C2A38;--mint:#16B3A6;--ink:#E7EFF1;--muted:#8FB0BB;--flag:#C0492B;--amber:#E0A13A;}
+*{box-sizing:border-box;margin:0;}
+html,body{width:1280px;height:720px;background:var(--bg);color:var(--ink);
+ font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;overflow:hidden;}
+.hd{padding:30px 48px 0;text-align:center;}
+h1{font-family:Cambria,Georgia,serif;font-size:38px;color:#fff;}
+.sub{color:var(--mint);font-size:19px;margin-top:4px;}
+.wrap{display:flex;justify-content:center;gap:70px;margin-top:34px;}
+.panel{width:440px;border-radius:18px;padding:24px;text-align:center;transition:all .5s;position:relative;}
+.left{background:#12333f;border:2px solid #2C5768;}
+.right{background:#0f2f3c;border:2px solid #2C5768;}
+.ptitle{font-size:24px;font-weight:700;margin-bottom:6px;}
+.pcap{color:var(--muted);font-size:16px;margin-bottom:18px;}
+.dna{font-family:'DejaVu Sans Mono',monospace;font-size:26px;letter-spacing:2px;margin:14px 0;}
+.cellrow{display:flex;justify-content:center;align-items:center;gap:16px;margin-top:8px;}
+.cell{width:70px;height:52px;border-radius:26px;background:#0c2530;display:flex;align-items:center;justify-content:center;font-size:13px;color:#7FB0BE;}
+.verdict{font-size:40px;font-weight:800;margin-top:16px;transition:opacity .5s;opacity:0;}
+.big{position:absolute;bottom:44px;left:0;width:1280px;text-align:center;font-size:30px;font-weight:700;color:#fff;opacity:0;transition:opacity .6s;}
+</style></head><body>
+<div class="hd"><h1>So what actually makes the difference?</h1>
+<div class="sub">two designs make the same protein — but the cell reads one better</div></div>
+<div class="wrap">
+  <div class="panel left" id="pL">
+    <div class="ptitle" style="color:#8FB0BB">The protein's shape</div>
+    <div class="pcap">its size, oiliness, ingredients</div>
+    <div class="dna" style="color:#8FB0BB">◇ ◇ ◇ ◇</div>
+    <div class="cellrow"><div class="cell" id="cL">cell</div></div>
+    <div class="verdict" id="vL" style="color:#C0492B">✗ no clue</div>
+  </div>
+  <div class="panel right" id="pR">
+    <div class="ptitle" style="color:#16B3A6">How the gene is spelled</div>
+    <div class="pcap">same protein, different DNA letters</div>
+    <div class="dna"><span style="color:#57B6C9">GCU</span> <span style="color:#3FA66A">CUG</span> <span style="color:#E0A13A">AAA</span> <span style="color:#16B3A6">GUU</span></div>
+    <div class="cellrow"><div class="cell" id="cR">cell</div></div>
+    <div class="verdict" id="vR" style="color:#16B3A6">✓ predicts it</div>
+  </div>
+</div>
+<div class="big" id="big">It's not the shape. It's the spelling.</div>
+<script>
+const cL=document.getElementById('cL'),cR=document.getElementById('cR');
+// left cell stays dim; right cell glows bright
+setTimeout(()=>{document.getElementById('vL').style.opacity=1;
+  cL.style.background='#153a48';cL.style.color='#4a6b78';cL.textContent='dim';},1400);
+setTimeout(()=>{document.getElementById('vR').style.opacity=1;
+  cR.style.boxShadow='0 0 34px 8px #16B3A6';cR.style.background='#16B3A6';cR.style.color='#06222b';cR.textContent='bright';
+  document.getElementById('pR').style.borderColor='#16B3A6';document.getElementById('pR').style.transform='scale(1.04)';},2100);
+setTimeout(()=>{document.getElementById('pL').style.opacity=0.5;},2600);
+setTimeout(()=>{document.getElementById('big').style.opacity=1;},3200);
+</script></body></html>

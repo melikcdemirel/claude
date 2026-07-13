@@ -1,0 +1,21 @@
+cff-version: 1.2.0
+title: "Cadence — a multi-agent Learn-phase copilot for the DBTL cycle"
+message: "If you use this project, please cite the validating study below."
+type: software
+license: MIT
+references:
+  - type: article
+    title: "Biomanufacturability of a Squid Ring Teeth Protein Library via Orthogonal High-Throughput Screening"
+    year: 2026
+    authors:
+      - family-names: Singhal
+        given-names: Khushank
+      - family-names: Allen
+        given-names: Benjamin D.
+      - family-names: Gaddes
+        given-names: David
+      - family-names: Baer
+        given-names: Thomas M.
+      - family-names: Demirel
+        given-names: Melik C.
+    notes: "Manuscript. Cadence reproduces the paper's Figure 5-6 Learn-phase analysis (CAI-only classifier 68.1 +/- 1.2% vs 43.8% baseline; FACS Cliff's delta +0.46/-0.03; bin-mean CAI vs mCherry R^2 = 0.91)."

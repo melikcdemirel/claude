@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>DBTL Multi-Agent Flow</title>
+<style>
+  :root{
+    --bg:#0C2A38; --panel:#14384A; --teal:#0E7C86; --mint:#16B3A6;
+    --ink:#E7EFF1; --muted:#8FB0BB; --flag:#E06A4E; --amber:#E0A13A;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;background:var(--bg);color:var(--ink);
+    font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;}
+  .wrap{max-width:1120px;margin:0 auto;padding:22px 26px 34px;}
+  header{display:flex;align-items:baseline;justify-content:space-between;flex-wrap:wrap;gap:8px;}
+  h1{font-family:Cambria,Georgia,serif;font-size:26px;margin:0;color:#fff;}
+  .sub{color:var(--mint);font-size:14px;letter-spacing:.5px;}
+  svg{width:100%;height:auto;display:block;}
+  .seg{fill:none;stroke:#2C5768;stroke-width:3;stroke-linecap:round;
+    stroke-dasharray:9 11;animation:flow 1.1s linear infinite;}
+  @keyframes flow{to{stroke-dashoffset:-40;}}
+  .caption-bar{display:flex;align-items:center;gap:14px;margin-top:8px;
+    background:var(--panel);border:1px solid #24506322;border-radius:12px;padding:12px 18px;}
+  .pill{font-size:12px;font-weight:700;letter-spacing:1px;text-transform:uppercase;
+    color:#022;background:var(--mint);border-radius:20px;padding:5px 12px;white-space:nowrap;transition:background .2s;}
+  .cap-text{font-size:16px;color:var(--ink);}
+  .cap-text b{color:var(--mint);}
+  .legend{display:flex;gap:22px;flex-wrap:wrap;margin-top:14px;color:var(--muted);font-size:13px;}
+  .legend span{display:inline-flex;align-items:center;gap:8px;}
+  .dot{width:11px;height:11px;border-radius:50%;display:inline-block;}
+  .controls{display:flex;gap:10px;align-items:center;}
+  button{background:var(--panel);color:var(--ink);border:1px solid #2A5163;border-radius:8px;
+    padding:7px 14px;font-size:13px;cursor:pointer;}
+  button:hover{border-color:var(--mint);}
+  .counter{font-size:13px;color:var(--muted);}
+  /* chart panel */
+  .chartpanel{margin-top:26px;background:var(--panel);border:1px solid #24506333;border-radius:14px;padding:18px 22px 12px;}
+  .chartpanel h2{font-family:Cambria,Georgia,serif;font-size:20px;margin:0 0 2px;color:#fff;}
+  .chartpanel .note{color:var(--muted);font-size:13px;margin:0 0 4px;}
+  .cpt{fill:#8FB0BB;font-size:13px;}
+  .cline{fill:none;stroke:#16B3A6;stroke-width:3;}
+  .cdot{fill:#0C2A38;stroke:#16B3A6;stroke-width:3;opacity:0;transition:opacity .3s;}
+  .grid{stroke:#1F4658;stroke-width:1;}
+  .tier{stroke-dasharray:4 6;stroke-width:1.2;}
+  @keyframes pulse{0%,100%{r:12;opacity:.9;}50%{r:17;opacity:.35;}}
+  .hlpulse{animation:pulse 1.4s ease-in-out infinite;}
+  .clegend{display:flex;gap:20px;flex-wrap:wrap;margin:2px 0 6px;font-size:13px;color:var(--muted);}
+  .clegend span{display:inline-flex;align-items:center;gap:7px;}
+  .swatch{width:22px;height:0;border-top-width:3px;border-top-style:solid;display:inline-block;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <h1>How the four agents run</h1>
+      <div class="sub">DESIGN → BUILD → TEST → LEARN · a closed loop</div>
+    </div>
+    <div class="controls">
+      <span class="counter" id="counter">Cycle 1</span>
+      <button id="toggle">Pause</button>
+    </div>
+  </header>
+
+  <svg id="svg" viewBox="0 0 1000 560" role="img" aria-label="DBTL agent flow diagram">
+    <defs>
+      <marker id="arrowG" markerWidth="9" markerHeight="9" refX="6" refY="3" orient="auto" markerUnits="strokeWidth">
+        <path d="M0,0 L6,3 L0,6 Z" fill="#5DA6A0"/>
+      </marker>
+      <marker id="arrowP" markerWidth="10" markerHeight="10" refX="7" refY="3" orient="auto" markerUnits="strokeWidth">
+        <path d="M0,0 L7,3 L0,6 Z" fill="#3E6B7A"/>
+      </marker>
+      <filter id="glow" x="-70%" y="-70%" width="240%" height="240%">
+        <feGaussianBlur stdDeviation="7" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+      </filter>
+      <radialGradient id="pktgrad" cx="50%" cy="50%" r="50%">
+        <stop offset="0%" stop-color="#CFFAF3"/><stop offset="55%" stop-color="#16B3A6"/><stop offset="100%" stop-color="#0E7C86"/>
+      </radialGradient>
+      <linearGradient id="areagrad" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stop-color="#16B3A6" stop-opacity="0.34"/>
+        <stop offset="100%" stop-color="#16B3A6" stop-opacity="0.02"/>
+      </linearGradient>
+    </defs>
+
+    <circle cx="500" cy="285" r="185" fill="none" stroke="#1C4456" stroke-width="1.5" stroke-dasharray="2 9"/>
+
+    <path class="seg" marker-end="url(#arrowG)" d="M 557.2 109.1 A 185 185 0 0 1 675.9 227.8"/>
+    <path class="seg" marker-end="url(#arrowG)" d="M 675.9 342.2 A 185 185 0 0 1 557.2 460.9"/>
+    <path class="seg" marker-end="url(#arrowG)" d="M 442.8 460.9 A 185 185 0 0 1 324.1 342.2"/>
+    <path class="seg" marker-end="url(#arrowG)" style="stroke:#7A5A24" d="M 324.1 227.8 A 185 185 0 0 1 442.8 109.1"/>
+
+    <path id="track" d="M500,100 A185,185 0 1 1 499.99,100" fill="none" stroke="none"/>
+
+    <path d="M500 540 L500 533" stroke="#3E6B7A" stroke-width="2.5" marker-end="url(#arrowP)" fill="none"/>
+    <text x="500" y="556" text-anchor="middle" fill="#8FB0BB" font-size="14">Test dataset in</text>
+
+    <path d="M251 285 L171 285" stroke="#3E6B7A" stroke-width="2.5" marker-end="url(#arrowP)" fill="none"/>
+    <text x="156" y="279" text-anchor="end" fill="#E06A4E" font-size="14" font-weight="700">Anomalies +</text>
+    <text x="156" y="298" text-anchor="end" fill="#E06A4E" font-size="14" font-weight="700">confidence</text>
+
+    <text x="393" y="171" text-anchor="middle" fill="#E0A13A" font-size="13" font-style="italic">feeds next design</text>
+
+    <g id="nDesign"><circle cx="500" cy="100" r="58" fill="#14384A" stroke="#0E7C86" stroke-width="2"/>
+      <text x="500" y="94" text-anchor="middle" fill="#fff" font-size="19" font-family="Cambria,serif" font-weight="700">Design</text>
+      <text x="500" y="115" text-anchor="middle" fill="#8FB0BB" font-size="11">propose constructs</text></g>
+    <g id="nBuild"><circle cx="685" cy="285" r="58" fill="#14384A" stroke="#0E7C86" stroke-width="2"/>
+      <text x="685" y="279" text-anchor="middle" fill="#fff" font-size="19" font-family="Cambria,serif" font-weight="700">Build</text>
+      <text x="685" y="300" text-anchor="middle" fill="#8FB0BB" font-size="11">plan protocol</text></g>
+    <g id="nTest"><circle cx="500" cy="470" r="58" fill="#14384A" stroke="#0E7C86" stroke-width="2"/>
+      <text x="500" y="464" text-anchor="middle" fill="#fff" font-size="19" font-family="Cambria,serif" font-weight="700">Test</text>
+      <text x="500" y="485" text-anchor="middle" fill="#8FB0BB" font-size="11">measure + schema</text></g>
+    <g id="nLearn"><circle cx="315" cy="285" r="58" fill="#14384A" stroke="#E06A4E" stroke-width="2.5"/>
+      <text x="315" y="279" text-anchor="middle" fill="#fff" font-size="19" font-family="Cambria,serif" font-weight="700">Learn</text>
+      <text x="315" y="300" text-anchor="middle" fill="#8FB0BB" font-size="11">flag &amp; score</text></g>
+
+    <circle id="packet" r="11" fill="url(#pktgrad)" filter="url(#glow)"/>
+  </svg>
+
+  <div class="caption-bar">
+    <span class="pill" id="pill">Design</span>
+    <span class="cap-text" id="cap">The Design agent proposes the construct library…</span>
+  </div>
+
+  <div class="legend">
+    <span><span class="dot" style="background:#0E7C86"></span> Agent (system prompt + role)</span>
+    <span><span class="dot" style="background:#16B3A6"></span> Data hand-off between phases</span>
+    <span><span class="dot" style="background:#E06A4E"></span> Learn output: flagged tokens + confidence</span>
+    <span><span class="dot" style="background:#E0A13A"></span> Feedback closing the loop</span>
+  </div>
+
+  <!-- ============ Confidence index vs cycle ============ -->
+  <div class="chartpanel">
+    <h2>Confidence index across cycles</h2>
+    <p class="note">Learn-phase confidence in flagged tokens. Measured in cycle 1 — <b style="color:#16B3A6">all-flags mean = 0.80</b>, <b style="color:#E8836C">dead feature (zero-variance) = "High" ≈ 0.86</b>; later cycles modeled — confidence rises as the loop grounds its reference set and gains code execution. Pulsing markers track the live cycle above.</p>
+    <div class="clegend">
+      <span><span class="swatch" style="border-top-color:#16B3A6"></span> All flags (mean)</span>
+      <span><span class="swatch" style="border-top-color:#E8836C"></span> Dead feature (zero-variance)</span>
+    </div>
+    <svg id="chart" viewBox="0 0 1000 322" role="img" aria-label="Confidence index versus cycle"></svg>
+  </div>
+</div>
+
+<script>
+/* ---------- shared cycle state ---------- */
+const track=document.getElementById('track');
+const packet=document.getElementById('packet');
+const LEN=track.getTotalLength();
+const nodes={Design:{el:nDesign,ang:-90},Build:{el:nBuild,ang:0},Test:{el:nTest,ang:90},Learn:{el:nLearn,ang:180}};
+const pill=document.getElementById('pill'),cap=document.getElementById('cap'),counter=document.getElementById('counter');
+const CAPS={Design:'The <b>Design</b> agent proposes the construct library and success metrics.',
+  Build:'<b>Build:</b> turns the design spec into a codon-optimization plan with sample IDs.',
+  Test:'<b>Test:</b> defines the assay and the dataset schema handed to Learn.',
+  Learn:'<b>Learn:</b> flags undefined & anomalous tokens (duplicates, dead features) with a confidence index.'};
+const SEGCAP={DB:'<b>Design → Build:</b> the design spec passes forward.',
+  BT:'<b>Build → Test:</b> the build plan becomes an assay.',
+  TL:'<b>Test → Learn:</b> the dataset is handed off for analysis.',
+  LD:'<b>Learn → Design:</b> scored findings + fixes seed the next cycle.'};
+let ang=-90,running=true,last=null,cycle=1,dwellUntil=0,atNode=false;
+
+function setActive(name){for(const k in nodes){const c=nodes[k].el.querySelector('circle'),on=(k===name);
+  if(on){c.setAttribute('filter','url(#glow)');c.setAttribute('stroke',k==='Learn'?'#E06A4E':'#16B3A6');c.setAttribute('stroke-width','4');c.setAttribute('fill','#1B4B60');}
+  else{c.removeAttribute('filter');c.setAttribute('stroke',k==='Learn'?'#E06A4E':'#0E7C86');c.setAttribute('stroke-width',k==='Learn'?'2.5':'2');c.setAttribute('fill','#14384A');}}}
+function nearestNode(a){let b=null,bd=999;for(const k in nodes){let d=Math.abs(((a-nodes[k].ang+540)%360)-180);if(d<bd){bd=d;b=k;}}return [b,bd];}
+function segKey(a){let m=((a+90)%360+360)%360;return m<90?'DB':m<180?'BT':m<270?'TL':'LD';}
+function setPill(t,bg,fg){pill.textContent=t;pill.style.background=bg;pill.style.color=fg;}
+
+/* ---------- confidence-index chart (two series) ---------- */
+const N=8;
+const CI  =[]; for(let c=1;c<=N;c++) CI.push(+(0.96-0.16*Math.exp(-0.4*(c-1))).toFixed(3));    // all flags (mean): 0.80 -> ~0.95
+const DEAD=[]; for(let c=1;c<=N;c++) DEAD.push(+(0.99-0.13*Math.exp(-0.55*(c-1))).toFixed(3)); // dead feature: 0.86 -> ~0.99
+const chart=document.getElementById('chart');
+const CX0=70,CX1=955,CY0=40,CY1=245, YMIN=0.5,YMAX=1.0;
+const xFor=c=>CX0+(c-1)/(N-1)*(CX1-CX0);
+const yFor=v=>CY1-(v-YMIN)/(YMAX-YMIN)*(CY1-CY0);
+const NS='http://www.w3.org/2000/svg';
+function mk(t,a){const e=document.createElementNS(NS,t);for(const k in a)e.setAttribute(k,a[k]);return e;}
+const MINT='#16B3A6', RED='#E8836C';
+
+// tier shading
+chart.appendChild(mk('rect',{x:CX0,y:yFor(1.0),width:CX1-CX0,height:yFor(0.9)-yFor(1.0),fill:'#16B3A6','fill-opacity':0.06}));
+chart.appendChild(mk('rect',{x:CX0,y:yFor(0.9),width:CX1-CX0,height:yFor(0.7)-yFor(0.9),fill:'#16B3A6','fill-opacity':0.03}));
+// gridlines + y labels
+[0.5,0.6,0.7,0.8,0.9,1.0].forEach(v=>{const y=yFor(v);
+  chart.appendChild(mk('line',{x1:CX0,y1:y,x2:CX1,y2:y,class:'grid'}));
+  const t=mk('text',{x:CX0-10,y:y+4,'text-anchor':'end',class:'cpt'});t.textContent=v.toFixed(1);chart.appendChild(t);});
+// tier reference lines
+[[0.90,'#16B3A6','certain ≥0.90'],[0.70,'#E0A13A','high ≥0.70']].forEach(([v,col,lab])=>{
+  chart.appendChild(mk('line',{x1:CX0,y1:yFor(v),x2:CX1,y2:yFor(v),stroke:col,class:'tier'}));
+  const t=mk('text',{x:CX0+8,y:yFor(v)-6,'text-anchor':'start',class:'cpt',fill:col});t.textContent=lab;chart.appendChild(t);});
+// x labels
+for(let c=1;c<=N;c++){const t=mk('text',{x:xFor(c),y:CY1+24,'text-anchor':'middle',class:'cpt'});t.textContent='Cycle '+c;chart.appendChild(t);}
+
+function drawSeries(data,color,area,lblDy){
+  if(area){const ap=data.map((v,i)=>`${xFor(i+1)},${yFor(v)}`).join(' ');
+    chart.appendChild(mk('polygon',{points:`${CX0},${CY1} ${ap} ${CX1},${CY1}`,fill:'url(#areagrad)'}));}
+  const ln=mk('polyline',{points:data.map((v,i)=>`${xFor(i+1)},${yFor(v)}`).join(' '),fill:'none',stroke:color,'stroke-width':3});
+  chart.appendChild(ln);
+  const L=ln.getTotalLength();ln.style.strokeDasharray=L;ln.style.strokeDashoffset=L;
+  ln.animate([{strokeDashoffset:L},{strokeDashoffset:0}],{duration:2200,easing:'ease-in-out',fill:'forwards'});
+  data.forEach((v,i)=>{
+    const d=mk('circle',{cx:xFor(i+1),cy:yFor(v),r:6,fill:'#0C2A38',stroke:color,'stroke-width':3,opacity:0});chart.appendChild(d);
+    const lbl=mk('text',{x:xFor(i+1),y:yFor(v)+lblDy,'text-anchor':'middle',class:'cpt',fill:color,opacity:0});
+    lbl.textContent=v.toFixed(2);chart.appendChild(lbl);
+    setTimeout(()=>{d.animate([{opacity:0},{opacity:1}],{duration:400,fill:'forwards'});lbl.animate([{opacity:0},{opacity:1}],{duration:400,fill:'forwards'});},300+i*(2200/N));
+  });
+}
+drawSeries(CI, MINT, true, 20);     // all-flags mean: area + labels below
+drawSeries(DEAD, RED, false, -13);  // dead feature: labels above
+
+// current-cycle highlight markers (one per series)
+function hl(ring,dotc){const r=mk('circle',{cx:xFor(1),cy:yFor(CI[0]),r:12,fill:'none',stroke:ring,'stroke-width':2,class:'hlpulse'});
+  const d=mk('circle',{cx:xFor(1),cy:yFor(CI[0]),r:6,fill:dotc});chart.appendChild(r);chart.appendChild(d);return {r,d};}
+const hlM=hl('#CFFAF3','#CFFAF3');
+const hlD=hl('#F4B3A4','#F4B3A4'); hlD.r.setAttribute('cy',yFor(DEAD[0]));hlD.d.setAttribute('cy',yFor(DEAD[0]));
+const hlText=mk('text',{x:512,y:CY1+52,'text-anchor':'middle',class:'cpt',fill:'#fff','font-weight':'700'});
+hlText.textContent='Cycle 1 — mean CI '+CI[0].toFixed(2)+' · dead feature '+DEAD[0].toFixed(2);chart.appendChild(hlText);
+function moveHighlight(c){const i=((c-1)%N),x=xFor(i+1);
+  hlM.r.setAttribute('cx',x);hlM.r.setAttribute('cy',yFor(CI[i]));hlM.d.setAttribute('cx',x);hlM.d.setAttribute('cy',yFor(CI[i]));
+  hlD.r.setAttribute('cx',x);hlD.r.setAttribute('cy',yFor(DEAD[i]));hlD.d.setAttribute('cx',x);hlD.d.setAttribute('cy',yFor(DEAD[i]));
+  hlText.textContent='Cycle '+(i+1)+' — mean CI '+CI[i].toFixed(2)+' · dead feature '+DEAD[i].toFixed(2);}
+
+/* ---------- main loop ---------- */
+function frame(ts){
+  if(last===null)last=ts;const dt=(ts-last)/1000;last=ts;
+  if(running&&ts>dwellUntil){ang+=34*dt; if(ang>=270){ang-=360;cycle++;counter.textContent='Cycle '+cycle;moveHighlight(cycle);}}
+  const norm=(((ang+90)%360+360)%360)/360;const pt=track.getPointAtLength(norm*LEN);
+  packet.setAttribute('cx',pt.x);packet.setAttribute('cy',pt.y);
+  const [nn,nd]=nearestNode(ang);
+  if(nd<6&&!atNode&&running){atNode=true;dwellUntil=ts+850;}
+  if(nd>24)atNode=false;
+  if(nd<26){setActive(nn);setPill(nn,nn==='Learn'?'#E06A4E':'#16B3A6',nn==='Learn'?'#fff':'#022');cap.innerHTML=CAPS[nn];}
+  else{setActive(null);const k=segKey(ang);setPill(k==='LD'?'Feedback':({DB:'Build',BT:'Test',TL:'Learn'})[k],k==='LD'?'#E0A13A':'#16B3A6','#022');cap.innerHTML=SEGCAP[k];}
+  requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+document.getElementById('toggle').addEventListener('click',e=>{running=!running;e.target.textContent=running?'Pause':'Play';last=null;});
+</script>
+</body>
+</html>

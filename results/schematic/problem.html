@@ -1,0 +1,53 @@
+<!DOCTYPE html><html><head><meta charset="UTF-8"><style>
+:root{--bg:#0C2A38;--mint:#16B3A6;--ink:#E7EFF1;--muted:#8FB0BB;}
+*{box-sizing:border-box;margin:0;}
+html,body{width:1280px;height:720px;background:var(--bg);color:var(--ink);
+ font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;overflow:hidden;}
+.hd{padding:34px 48px 0;}
+h1{font-family:Cambria,Georgia,serif;font-size:38px;color:#fff;}
+.sub{color:var(--mint);font-size:19px;margin-top:4px;}
+.foot{position:absolute;bottom:40px;left:0;width:1280px;text-align:center;}
+.foot .big{font-size:26px;color:#fff;font-weight:700;}
+.foot .s{color:var(--muted);font-size:18px;margin-top:6px;}
+svg{display:block;}
+.tally{fill:var(--muted);font-size:18px;font-family:system-ui;}
+.tallyn{fill:#16B3A6;font-weight:700;}
+</style></head><body>
+<div class="hd"><h1>Same protein. Wildly different results.</h1>
+<div class="sub">drop a design into a cell → sometimes it makes a lot, usually barely any</div></div>
+<svg id="svg" width="1280" height="470" viewBox="0 0 1280 470"></svg>
+<div class="foot"><div class="big">You can't tell which designs will work — until you try.</div>
+<div class="s">That's the guessing game this project attacks.</div></div>
+<script>
+const NS="http://www.w3.org/2000/svg";const svg=document.getElementById('svg');
+function mk(t,a){const e=document.createElementNS(NS,t);for(const k in a)e.setAttribute(k,a[k]);return e;}
+const defs=mk('defs',{});
+const g=mk('radialGradient',{id:'glow'});g.appendChild(mk('stop',{offset:'0%','stop-color':'#BFF7EF'}));g.appendChild(mk('stop',{offset:'100%','stop-color':'#16B3A6'}));
+defs.appendChild(g);svg.appendChild(defs);
+const cols=8, rows=4, x0=170, y0=60, dx=118, dy=95;
+const cells=[];
+for(let r=0;r<rows;r++)for(let c=0;c<cols;c++){
+  const cx=x0+c*dx, cy=y0+r*dy;
+  const cell=mk('ellipse',{cx,cy,rx:40,ry:30,fill:'#12333f',stroke:'#2C5768','stroke-width':2});
+  svg.appendChild(cell);
+  cells.push({cx,cy,cell,lit:false});
+}
+let i=0, bright=0;
+const tally=mk('text',{x:1180,y:445,'text-anchor':'end',class:'tally'});
+tally.appendChild(document.createTextNode('bright cells: '));
+const tn=mk('tspan',{class:'tallyn'});tn.textContent='0';tally.appendChild(tn);
+const tt=mk('tspan',{});tt.textContent=' / 32';tally.appendChild(tt);
+svg.appendChild(tally);
+function lightNext(){
+  if(i>=cells.length)return;
+  const c=cells[i++];
+  // weighted: mostly dim, few bright
+  const rnd=Math.random(); let level = rnd>0.82?1.0 : rnd>0.62?0.55 : 0.22;
+  const glow=mk('ellipse',{cx:c.cx,cy:c.cy,rx:40,ry:30,fill:'url(#glow)','fill-opacity':0});
+  svg.insertBefore(glow,tally);
+  let o=0;const tgt=level;const iv=setInterval(()=>{o+=0.08;glow.setAttribute('fill-opacity',Math.min(o,tgt));if(o>=tgt)clearInterval(iv);},20);
+  if(level>=1.0){bright++;tn.textContent=String(bright);}
+  // small DNA tick falling in
+}
+const timer=setInterval(()=>{lightNext(); if(i>=cells.length)clearInterval(timer);},170);
+</script></body></html>

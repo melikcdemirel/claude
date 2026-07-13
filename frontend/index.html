@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>DBTL Multi-Agent Lab</title>
+  <link rel="stylesheet" href="/static/style.css" />
+</head>
+<body>
+  <header>
+    <h1>DBTL Multi-Agent Lab</h1>
+    <p class="sub">Design → Build → Test → Learn · a synthetic-biology agent pipeline</p>
+  </header>
+
+  <main>
+    <!-- Step 1: dataset -->
+    <section class="card">
+      <h2>1 · Dataset (optional)</h2>
+      <p class="hint">Upload a CSV/TSV from your Test phase. The Test &amp; Learn agents will see a summary of it.</p>
+      <input type="file" id="fileInput" accept=".csv,.tsv,.txt" />
+      <button id="uploadBtn">Upload</button>
+      <pre id="datasetSummary" class="summary hidden"></pre>
+    </section>
+
+    <!-- Step 2: the pipeline -->
+    <section class="card">
+      <h2>2 · The agents</h2>
+      <div id="pipeline" class="pipeline"></div>
+    </section>
+
+    <!-- Step 3: run -->
+    <section class="card">
+      <h2>3 · Run</h2>
+      <label for="objective">Objective / task for this cycle</label>
+      <textarea id="objective" rows="3" placeholder="e.g. Improve expression of a fluorescent reporter and catalogue any novel parts in the new dataset."></textarea>
+      <div class="run-row">
+        <button id="cycleBtn" class="primary">▶ Run full DBTL cycle</button>
+        <span class="or">or run one agent:</span>
+        <select id="singleAgent"></select>
+        <button id="singleBtn">Run selected</button>
+      </div>
+      <label class="checkbox"><input type="checkbox" id="useDataset" checked /> Include uploaded dataset</label>
+    </section>
+
+    <!-- Results -->
+    <section class="card">
+      <h2>Results</h2>
+      <div id="status" class="status"></div>
+      <div id="results"></div>
+    </section>
+  </main>
+
+  <footer>
+    <p>Backend: FastAPI · Model: <code>claude-sonnet-4-6</code> · Runs in demo mode until you set an API key.</p>
+  </footer>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>

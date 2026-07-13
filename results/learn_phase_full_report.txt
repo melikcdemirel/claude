@@ -1,0 +1,332 @@
+# Learn Phase Report — DBTL Cycle 1
+## SRT–mCherry Reporter Library | *E. coli* BL21(DE3)
+
+---
+
+## 0. METHODOLOGY OVERVIEW
+
+### Confidence Index (CI) Definition
+
+All flags are scored on a **CI scale of 0.0–1.0**:
+
+| CI Range | Interpretation | Required Action |
+|---|---|---|
+| 0.90–1.00 | Certain error / confirmed anomaly | **Must resolve before Learn-phase model ingestion** |
+| 0.70–0.89 | High-confidence issue | Strong recommendation to resolve; flag in model |
+| 0.50–0.69 | Probable issue | Investigate; include as covariate uncertainty |
+| 0.30–0.49 | Possible issue | Document; monitor in next cycle |
+| 0.00–0.29 | Low suspicion | Note only |
+
+### CI Computation Formula
+
+For each flag *f*, CI is computed as a weighted sum:
+
+```
+CI_f = w1·(cardinality_signal) + w2·(schema_violation_signal) + w3·(biological_plausibility_signal) + w4·(reproducibility_signal)
+```
+
+Where weights sum to 1.0 and each signal is 0 or 1 (or fractional for partial evidence). Specific weights are stated per flag below.
+
+---
+
+## 1. STRUCTURAL INTEGRITY CHECKS
+
+### 1.1 Dataset Dimensions
+
+| Property | Observed | Expected | Status |
+|---|---|---|---|
+| Rows | 9 | 9 (3 bins × 3 timepoints) | ✅ PASS |
+| Columns | 11 | 9 (per canonical schema) | ⚠️ EXCESS (+2 suspicious) |
+| Missing values | 0 | 0 | ✅ PASS |
+| Duplicate rows | 0 | 0 | ✅ PASS |
+| Unique (bin, timepoint_h) combos | 9 | 9 | ✅ PASS |
+| `bin` vocabulary | {Low, Medium, High} | {Low, Medium, High} | ✅ PASS |
+| `timepoint_h` vocabulary | {15, 25, 35} | {15, 25, 35} | ✅ PASS |
+
+---
+
+## 2. FLAG REGISTER
+
+---
+
+### 🔴 FLAG 1 — Undefined / Malformed Column Token: `dG_dG_cds_only`
+
+**Category:** Undefined token (column name) — prefix duplication artefact
+
+| Property | Detail |
+|---|---|
+| **Column observed** | `dG_dG_cds_only` |
+| **Expected token** | `dG_cds_only` (per Section 2.2 of schema) |
+| **Anomaly type** | Column name contains doubled prefix `dG_` + `dG_` → likely a pipeline concatenation error (e.g., `prefix + column_name` where column_name itself already contained `dG_`) |
+| **Cardinality** | 3 unique values: {−12.4, −11.9, −11.6}, each repeated 3× |
+| **Value range** | −12.4 to −11.6 kcal/mol — within schema expectation (−30 to 0) |
+| **Rows affected** | All 9 / 9 (100%) |
+
+**CI Computation:**
+
+| Signal | Weight | Value | Contribution |
+|---|---|---|---|
+| `cardinality_signal`: values exist and are non-null (not pure noise) | 0.20 | 1.0 | 0.20 |
+| `schema_violation_signal`: name ≠ any permitted column token | 0.40 | 1.0 | 0.40 |
+| `biological_plausibility_signal`: values plausible for ΔG_CDS (within −30 to 0 range) | 0.20 | 0.0 | 0.00 (plausible → not noise) |
+| `reproducibility_signal`: identical to `ra_dG_cds_only` (confirmed duplicate content) | 0.20 | 1.0 | 0.20 |
+| **CI_FLAG1** | | | **0.80** |
+
+> **CI = 0.80 — HIGH CONFIDENCE: Malformed column token requiring rename before model ingestion.**
+
+**Root cause hypothesis:** Automated feature-extraction pipeline applied a `dG_` prefix to a column already named `dG_cds_only`, producing `dG_dG_cds_only`. Probability: ~85%.
+
+**Required action:** Rename `dG_dG_cds_only` → `dG_cds_only` after resolving FLAG 2 (deduplication decision).
+
+---
+
+### 🔴 FLAG 2 — Undefined / Redundant Column Token: `ra_dG_cds_only`
+
+**Category:** Undefined token (column name) — unrecognized prefix, content-duplicate of FLAG 1
+
+| Property | Detail |
+|---|---|
+| **Column observed** | `ra_dG_cds_only` |
+| **Expected token** | No `ra_` prefix defined in schema; nearest match is `dG_cds_only` |
+| **Anomaly type** | Unknown prefix `ra_`; not in controlled vocabulary. Possible origins: (a) tool-specific prefix from an RNA analysis wrapper (`ra` = "RNA analysis"?), (b) leftover branch column from a pipeline fork, (c) typographic corruption of `dG_` |
+| **Cardinality** | 3 unique values: {−12.4, −11.9, −11.6} — **identical set and pattern to `dG_dG_cds_only`** |
+| **Value correlation with `dG_dG_cds_only`** | r = 1.00 (perfect, all 9 rows match exactly) |
+| **Rows affected** | All 9 / 9 (100%) |
+
+**CI Computation:**
+
+| Signal | Weight | Value | Contribution |
+|---|---|---|---|
+| `cardinality_signal`: values exist; non-null; numerically plausible | 0.20 | 1.0 | 0.20 |
+| `schema_violation_signal`: `ra_` prefix undefined in any schema section | 0.40 | 1.0 | 0.40 |
+| `biological_plausibility_signal`: within valid ΔG range | 0.20 | 0.0 | 0.00 |
+| `reproducibility_signal`: perfect duplicate of FLAG 1 column (r=1.00, all rows) | 0.20 | 1.0 | 0.20 |
+| **CI_FLAG2** | | | **0.80** |
+
+> **CI = 0.80 — HIGH CONFIDENCE: Undefined column token and content-duplicate. One of {`dG_dG_cds_only`, `ra_dG_cds_only`} must be dropped; the survivor renamed to `dG_cds_only`.**
+
+**Joint diagnosis (FLAGS 1+2):** The pipeline almost certainly exported the same computed feature twice under two erroneous names. The canonical feature is `dG_cds_only`. Recommended resolution: drop `ra_dG_cds_only`, rename `dG_dG_cds_only` → `dG_cds_only`.
+
+---
+
+### 🔴 FLAG 3 — Zero-Variance Column: `dG_junction` (Constant Value)
+
+**Category:** Statistical anomaly — zero variance across all bins and timepoints
+
+| Property | Detail |
+|---|---|
+| **Column** | `dG_junction` |
+| **Unique values** | 1 (−3.1 kcal/mol across all 9 rows) |
+| **Expected behavior** | Should vary across bins if different constructs with different junction sequences sort into different gates |
+| **Schema expectation** | −15 to 0 kcal/mol range; variation expected |
+| **Variance** | σ² = 0.000, CV = undefined (zero SD) |
+| **Rows affected** | 9 / 9 (100%) |
+
+**CI Computation:**
+
+| Signal | Weight | Value | Contribution |
+|---|---|---|---|
+| `cardinality_signal`: single unique value across full factorial — statistically improbable | 0.25 | 1.0 | 0.25 |
+| `schema_violation_signal`: value (−3.1) within permitted range; name matches schema exactly | 0.25 | 0.0 | 0.00 |
+| `biological_plausibility_signal`: identical junction ΔG across all expression bins is biologically implausible unless all constructs share the exact same junction; partial credit | 0.30 | 0.80 | 0.24 |
+| `reproducibility_signal`: zero variance is consistent across all timepoints (not random) | 0.20 | 0.50 | 0.10 |
+| **CI_FLAG3** | | | **0.59** |
+
+> **CI = 0.59 — PROBABLE ISSUE: Zero-variance column will contribute zero information to any regression model. Three alternative root causes ranked by probability:**
+
+| Rank | Hypothesis | Est. Probability |
+|---|---|---|
+| 1 | All library constructs share an identical junction sequence by design (e.g., fixed linker) → feature is truly invariant in this library | 45% |
+| 2 | RNAfold computation failed silently; default/fallback value (−3.1) written to all rows | 35% |
+| 3 | Bin-level averaging collapsed genuine per-construct variation to a single mean (unlikely if constructs differ) | 20% |
+
+**Required action:** Query the pipeline operator: Is the SRT–mCherry junction sequence fixed across all constructs? If yes, retain column with annotation `[INVARIANT — design feature]` but exclude from feature matrix. If no, recompute `dG_junction` from per-construct sequences.
+
+---
+
+### 🟡 FLAG 4 — Temporal Invariance of RNA Folding Features (`dG_dG_cds_only`, `dG_utr_cds30`)
+
+**Category:** Statistical anomaly — ΔG values constant across timepoints (expected behaviour for sequence-derived features, but worth confirming)
+
+| Property | Detail |
+|---|---|
+| **Columns** | `dG_dG_cds_only`, `ra_dG_cds_only`, `dG_utr_cds30` |
+| **Observation** | Each bin's ΔG value is identical at T=15, T=25, T=35 |
+| **Biological expectation** | Sequence-derived thermodynamic features *should* be time-invariant (sequence does not change) — this is **expected** |
+| **Risk** | If values were mistakenly copied across timepoints from a single-timepoint computation rather than computed independently, errors would be invisible |
+
+**CI Computation:**
+
+| Signal | Weight | Value | Contribution |
+|---|---|---|---|
+| `cardinality_signal`: values repeat 3× per bin — consistent with time-invariance expectation | 0.30 | 0.0 | 0.00 |
+| `schema_violation_signal`: no schema violation | 0.30 | 0.0 | 0.00 |
+| `biological_plausibility_signal`: time-invariant ΔG is expected; low suspicion | 0.20 | 0.20 | 0.04 |
+| `reproducibility_signal`: perfectly consistent pattern | 0.20 | 0.10 | 0.02 |
+| **CI_FLAG4** | | | **0.06** |
+
+> **CI = 0.06 — LOW SUSPICION: Behaviour is expected for sequence-derived features. Note only; no action required unless provenance of computation is unverified.**
+
+---
+
+### 🟡 FLAG 5 — `cai_std` Cardinality Anomaly (Potential Duplicate Value)
+
+**Category:** Minor statistical anomaly — one value appears twice
+
+| Property | Detail |
+|---|---|
+| **Column** | `cai_std` |
+| **Unique values** | 8 (not 9 as expected for a fully unique set) |
+| **Duplicate value** | 0.037 appears in 2 rows |
+| **Rows sharing value** | Medium/T=25 (cai_std=0.037) and Medium/T=35 (cai_std=0.037) |
+| **Expected** | Mild — SD estimates can coincide by chance; not alarming |
+
+**CI Computation:**
+
+| Signal | Weight | Value | Contribution |
+|---|---|---|---|
+| `cardinality_signal`: 1 duplicate in 9 values — low signal | 0.40 | 0.20 | 0.08 |
+| `schema_violation_signal`: value within range (0–0.15); name correct | 0.30 | 0.0 | 0.00 |
+| `biological_plausibility_signal`: CAI SD stabilising across late timepoints is plausible | 0.30 | 0.10 | 0.03 |
+| **CI_FLAG5** | | | **0.11** |
+
+> **CI = 0.11 — LOW SUSPICION: Likely genuine coincidence. No action required.**
+
+---
+
+### 🟢 FLAG 6 — CV Check on `fluor_per_od` (QC Criterion: CV < 60%)
+
+**Category:** QC threshold evaluation
+
+Computed CV = `fluor_per_od_std` / `fluor_per_od_mean` × 100% for each row:
+
+| bin | timepoint_h | mean | std | CV (%) | Status |
+|---|---|---|---|---|---|
+| Low | 15 | 58.3 | 22.1 | **37.9%** | ✅ PASS |
+| Medium | 15 | 181.6 | 49.7 | **27.4%** | ✅ PASS |
+| High | 15 | 342.8 | 88.2 | **25.7%** | ✅ PASS |
+| Low | 25 | 71.5 | 27.4 | **38.3%** | ✅ PASS |
+| Medium | 25 | 224.9 | 60.3 | **26.8%** | ✅ PASS |
+| High | 25 | 431.2 | 102.6 | **23.8%** | ✅ PASS |
+| Low | 35 | 80.2 | 31.0 | **38.7%** | ✅ PASS |
+| Medium | 35 | 251.3 | 66.8 | **26.6%** | ✅ PASS |
+| High | 35 | 469.7 | 110.4 | **23.5%** | ✅ PASS |
+
+> **All 9 rows PASS the CV < 60% QC criterion. Highest CV is in the Low bin (~38–39%), consistent with noisy low-expressing constructs. No bimodal population flag triggered.**
+
+---
+
+### 🟢 FLAG 7 — `n_capillaries` Range Check (QC Criterion: ≥ 10,000 events)
+
+| Statistic | Value |
+|---|---|
+| Min | 16,880 |
+| Max | 17,250 |
+| Mean | 17,053 |
+| All rows ≥ 10,000? | ✅ YES |
+| All rows ≤ 20,000 (schema max)? | ✅ YES |
+
+> **All 9 rows PASS. Event counts are tightly clustered (range = 370 events, ~2.2% spread), indicating consistent FACS acquisition.**
+
+---
+
+### 🟢 FLAG 8 — `cai_mean` Range and Monotonicity Check
+
+| Observation | Detail |
+|---|---|
+| Range observed | 0.709–0.761 |
+| Schema expectation | 0.60–0.96 |
+| Within range? | ✅ YES |
+| Monotonic ordering (Low < Medium < High) at each timepoint? | ✅ YES (T=15: 0.712 < 0.744 < 0.758; T=25: 0.710 < 0.746 < 0.760; T=35: 0.709 < 0.747 < 0.761) |
+| Biological interpretation | Higher-CAI constructs sorted into higher-expression bins — **consistent with codon optimization hypothesis** |
+
+> **PASS. No anomaly. CAI gradient across bins is a positive signal for the Design phase.**
+
+---
+
+## 3. CONSOLIDATED FLAG REGISTER
+
+| Flag | Column(s) | Category | CI | Priority | Action Required |
+|---|---|---|---|---|---|
+| 🔴 FLAG 1 | `dG_dG_cds_only` | Undefined token — malformed column name | **0.80** | CRITICAL | Rename → `dG_cds_only` after FLAG 2 resolution |
+| 🔴 FLAG 2 | `ra_dG_cds_only` | Undefined token — unknown prefix; content duplicate | **0.80** | CRITICAL | Drop column; survivor of {FLAG1, FLAG2} renamed to `dG_cds_only` |
+| 🔴 FLAG 3 | `dG_junction` | Zero-variance / possibly failed computation | **0.59** | HIGH | Verify junction sequence design intent; recompute if error |
+| 🟡 FLAG 4 | `dG_*` columns | Temporal invariance (expected but verify provenance) | **0.06** | LOW | Note only; confirm single-timepoint computation is intentional |
+| 🟡 FLAG 5 | `cai_std` | Duplicate value (likely coincidence) | **0.11** | LOW | No action required |
+| 🟢 FLAG 6 | `fluor_per_od_*` | CV QC check | **—** | PASS | All bins pass; Low bin ~38% CV is acceptable |
+| 🟢 FLAG 7 | `n_capillaries` | Event count QC check | **—** | PASS | All bins well above 10,000 threshold |
+| 🟢 FLAG 8 | `cai_mean` | Range + monotonicity check | **—** | PASS | Positive biological signal confirmed |
+
+---
+
+## 4. CLEANED SCHEMA (POST-RESOLUTION)
+
+After resolving FLAGS 1–3, the canonical feature matrix for Learn-phase regression should be:
+
+| Column | Type | Status | Role in Model |
+|---|---|---|---|
+| `bin` | categorical | ✅ Clean | Target / stratification variable |
+| `timepoint_h` | integer | ✅ Clean | Covariate |
+| `n_capillaries` | integer | ✅ Clean | Weight / QC covariate |
+| `cai_mean` | float | ✅ Clean | **Primary predictor** |
+| `cai_std` | float | ✅ Clean | Uncertainty covariate |
+| `fluor_per_od_mean` | float | ✅ Clean | **Primary response variable** |
+| `fluor_per_od_std` | float | ✅ Clean | Response uncertainty |
+| `dG_cds_only` | float | ⚠️ Rename required | Predictor (after FLAGS 1+2 resolved) |
+| `dG_junction` | float | ⚠️ Investigate | Exclude until FLAG 3 resolved |
+| `dG_utr_cds30` | float | ✅ Clean | Predictor |
+
+**Columns to DROP before model ingestion:** `dG_dG_cds_only` (replaced), `ra_dG_cds_only` (duplicate)
+
+---
+
+## 5. PRELIMINARY BIOLOGICAL SIGNALS FOR DESIGN PHASE FEEDBACK
+
+> These observations are **descriptive only** given N=9 bin-aggregated rows; formal regression awaits per-construct data.
+
+### 5.1 Expression Kinetics
+
+| bin | T=15 → T=25 Δ (%) | T=25 → T=35 Δ (%) | Trend |
+|---|---|---|---|
+| Low | +22.6% | +12.2% | Decelerating growth |
+| Medium | +23.9% | +11.7% | Decelerating growth |
+| High | +25.8% | +8.9% | Decelerating growth |
+
+> Expression increases from T=15 to T=35 in all bins but the rate of increase slows — consistent with carbon source depletion or growth arrest at late timepoints in a closed batch system. High-bin constructs show strongest early accumulation.
+
+### 5.2 CAI–Expression Gradient
+
+```
+CAI gradient across bins: Δ(High − Low) ≈ +0.046–0.052 CAI units
+Fluorescence gradient:    Δ(High − Low) ≈ +284 to +390 RFU/OD across timepoints
+```
+
+A monotone positive CAI → fluorescence relationship is present at all timepoints. **Recommend CAI as primary Design-phase optimization lever in Cycle 2.**
+
+### 5.3 Design Phase Recommendations
+
+| Recommendation | Basis |
+|---|---|
+| Target CAI > 0.76 in next construct batch | High-bin CAI centroid is 0.758–0.761; push upper tail |
+| Fix optimal measurement timepoint at T=25 h | Best signal-to-noise before deceleration; reduces experiment cost by eliminating T=35 if confirmed |
+| Redesign junction sequences with ΔG variation | FLAG 3: zero variance in `dG_junction` prevents learning its contribution; introduce 3–5 distinct junction variants |
+| Resolve `dG_cds_only` pipeline naming bug | FLAGS 1+2: pipeline must be patched before Cycle 2 data ingestion |
+| Expand Low-bin construct sequencing | Low-bin CV (~38%) is highest; possible mixed-quality constructs; sequence-confirm all Low-bin members |
+
+---
+
+## 6. OPEN CLARIFICATION REQUESTS
+
+The following questions must be answered by the Design/Build team before Cycle 2 begins:
+
+| # | Question | Flag | Urgency |
+|---|---|---|---|
+| Q1 | Is the SRT–mCherry junction sequence **identical** across all library constructs by design? | FLAG 3 | HIGH |
+| Q2 | What pipeline step generates the `dG_` prefix on column names? Is it a wrapper script applying a prefix to all RNAfold outputs? | FLAGS 1+2 | HIGH |
+| Q3 | Was `dG_junction` computed per-construct and then averaged into bins, or was only one representative sequence folded? | FLAG 3 | HIGH |
+| Q4 | Is `ra_` a known prefix in the RNAfold analysis wrapper used (e.g., does the tool output `ra_dG_cds_only` natively)? | FLAG 2 | MEDIUM |
+| Q5 | Should T=35 h be retained in Cycle 2 given the decelerating expression signal, or is the timepoint serving a secondary purpose (stability / toxicity readout)? | — | MEDIUM |
+
+---
+
+*Report generated: Learn Phase, DBTL Cycle 1. All findings are based on the 9-row bin-summary dataset provided inline. Per-construct resolution data are required for regression modelling in Cycle 2.*

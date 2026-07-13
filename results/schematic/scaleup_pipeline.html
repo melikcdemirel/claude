@@ -1,0 +1,103 @@
+<!DOCTYPE html><html><head><meta charset="UTF-8"><style>
+:root{--bg:#0C2A38;--teal:#0E7C86;--mint:#16B3A6;--ink:#E7EFF1;--muted:#8FB0BB;--amber:#E0A13A;}
+*{box-sizing:border-box;margin:0;}
+html,body{width:1280px;height:720px;background:var(--bg);color:var(--ink);
+ font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;overflow:hidden;}
+.hd{padding:28px 48px 0;}
+h1{font-family:Cambria,Georgia,serif;font-size:34px;color:#fff;}
+.sub{color:var(--mint);font-size:17px;margin-top:2px;}
+.stat{position:absolute;right:48px;top:34px;text-align:right;}
+.stat .big{font-family:Cambria,serif;font-size:46px;font-weight:700;color:var(--amber);line-height:1;}
+.stat .cap{color:var(--muted);font-size:14px;}
+svg{display:block;}
+.lab{fill:var(--ink);font-size:16px;font-family:system-ui;text-anchor:middle;}
+.small{fill:var(--muted);font-size:13px;font-family:system-ui;text-anchor:middle;}
+.foot{position:absolute;bottom:26px;left:0;width:1280px;text-align:center;color:var(--muted);font-size:15px;}
+.foot b{color:var(--mint);}
+</style></head><body>
+<div class="hd"><h1>From sequence to scale</h1>
+<div class="sub">The biomanufacturing pipeline Cadence's Learn phase feeds — fermented protein fiber</div></div>
+<div class="stat"><div class="big" id="tons">0</div><div class="cap">metric tons / year · plant operational 2027</div></div>
+<svg id="svg" width="1280" height="560" viewBox="0 0 1280 560">
+  <defs>
+    <linearGradient id="broth" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#1DBBA9"/><stop offset="100%" stop-color="#0E7C86"/>
+    </linearGradient>
+    <marker id="fa" markerWidth="9" markerHeight="9" refX="6" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6 Z" fill="#5DA6A0"/></marker>
+    <clipPath id="tankclip"><rect x="556" y="150" width="168" height="210" rx="16"/></clipPath>
+  </defs>
+
+  <!-- flow line -->
+  <line x1="150" y1="230" x2="1130" y2="230" stroke="#22506333" stroke-width="2"/>
+
+  <!-- stage chips -->
+  <g id="stages"></g>
+
+  <!-- bioreactor tank (center) -->
+  <rect x="556" y="150" width="168" height="210" rx="16" fill="#0f2f3c" stroke="#2C5768" stroke-width="2"/>
+  <rect id="liquid" x="556" y="360" width="168" height="0" fill="url(#broth)" clip-path="url(#tankclip)"/>
+  <g id="bubbles" clip-path="url(#tankclip)"></g>
+  <rect x="556" y="150" width="168" height="210" rx="16" fill="none" stroke="#2C5768" stroke-width="2"/>
+  <text x="640" y="140" class="lab" style="font-weight:700">Fermentation</text>
+  <text x="640" y="388" class="small">biomass → protein pulp</text>
+
+  <!-- scale ladder -->
+  <g id="ladder"></g>
+</svg>
+<div class="foot"><b>Procell™</b> fermented protein fiber · no oil, no animals · spun like Lyocell · worn as <b>Sonachic</b> knitwear</div>
+<script>
+const NS="http://www.w3.org/2000/svg";const svg=document.getElementById('svg');
+function mk(t,a){const e=document.createElementNS(NS,t);for(const k in a)e.setAttribute(k,a[k]);return e;}
+// stage chips
+const stages=[["Protein\nsequence",180],["Fermentation",640],["Protein\npulp",860],["Procell™\nfiber",1000],["Garment",1130]];
+const sg=document.getElementById('stages');
+stages.forEach(([name,x],i)=>{
+  if(name!=="Fermentation"){
+    sg.appendChild(mk('circle',{cx:x,cy:230,r:34,fill:'#12333f',stroke:'#2C5768','stroke-width':2}));
+    name.split("\n").forEach((ln,j)=>{const t=mk('text',{x:x,y:226+j*17-(name.includes("\n")?8:0),class:'lab'});t.setAttribute('font-size','13');t.textContent=ln;sg.appendChild(t);});
+  }
+});
+// arrows between stages
+[[214,556],[724,826],[894,966],[1034,1096]].forEach(([x1,x2])=>{
+  sg.appendChild(mk('line',{x1:x1,y1:230,x2:x2,y2:230,stroke:'#5DA6A0','stroke-width':2,'marker-end':'url(#fa)'}));
+});
+// flowing dots along pipeline
+const dots=[];
+function spawn(){const d=mk('circle',{cx:214,cy:230,r:4,fill:'#16B3A6','fill-opacity':0.9});svg.appendChild(d);dots.push({x:214,el:d});}
+// bubbles in tank
+const bubbles=[];const bg=document.getElementById('bubbles');
+function bub(){const x=560+Math.random()*156;const b=mk('circle',{cx:x,cy:356,r:2+Math.random()*3,fill:'#BFF7EF','fill-opacity':0.7});bg.appendChild(b);bubbles.push({x,y:356,b,v:1+Math.random()*1.5});}
+// liquid fill
+const liquid=document.getElementById('liquid');let fill=0;
+// tons counter
+const tons=document.getElementById('tons');const t0=performance.now();
+let last=0;
+function frame(now){
+  // fill tank
+  if(fill<200)fill+=1.4;liquid.setAttribute('y',360-fill);liquid.setAttribute('height',fill);
+  // bubbles
+  if(Math.random()<0.5)bub();
+  for(let i=bubbles.length-1;i>=0;i--){const o=bubbles[i];o.y-=o.v;o.b.setAttribute('cy',o.y);if(o.y<360-fill+4){o.b.remove();bubbles.splice(i,1);}}
+  // flowing dots
+  if(dots.length<40 && Math.random()<0.5)spawn();
+  for(let i=dots.length-1;i>=0;i--){const o=dots[i];o.x+=4;o.el.setAttribute('cx',o.x);
+    // change color as it passes fiber stage
+    if(o.x>900)o.el.setAttribute('fill','#E0A13A');
+    if(o.x>1130){o.el.remove();dots.splice(i,1);}}
+  // tons count to 7000
+  let p=Math.min(1,(now-t0)/2600);const e=1-Math.pow(1-p,3);tons.textContent=Math.floor(e*7000).toLocaleString();
+  requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+// scale ladder
+const ld=document.getElementById('ladder');
+const vessels=[["mL flask",300,470,26],["L bioreactor",560,455,46],["7,000-ton plant",900,430,78]];
+vessels.forEach(([name,x,y,h],i)=>{
+  const w=h*0.7;
+  ld.appendChild(mk('rect',{x:x-w/2,y:y,width:w,height:h,rx:6,fill:'#12333f',stroke:'#2C5768','stroke-width':2}));
+  ld.appendChild(mk('rect',{x:x-w/2,y:y+h*0.45,width:w,height:h*0.55,rx:6,fill:'#0E7C86','fill-opacity':0.6}));
+  const t=mk('text',{x:x,y:y+h+22,class:'small'});t.textContent=name;ld.appendChild(t);
+  if(i<2)ld.appendChild(mk('line',{x1:x+w/2+10,y1:y+h,x2:vessels[i+1][1]-vessels[i+1][3]*0.35-10,y2:vessels[i+1][2]+vessels[i+1][3],stroke:'#5DA6A0','stroke-width':2,'marker-end':'url(#fa)'}));
+});
+ld.appendChild(mk('text',{x:1090,y:500,class:'lab',style:'font-weight:700'})).textContent="scale-up";
+</script></body></html>
